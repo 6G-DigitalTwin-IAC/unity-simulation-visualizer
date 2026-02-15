@@ -1,0 +1,65 @@
+{
+  "total_planes": 5,
+  "sats_per_plane": 6,
+  "steps": [
+    {
+      "step_id": 0,
+      "metrics": {
+        "avg_delay": 10.5,
+        "reroute_count": 0,
+        "stability_score": 100
+      },
+      "links": [
+        { "u": 0, "v": 1, "active": true, "load": 0.1 },
+        { "u": 1, "v": 2, "active": true, "load": 0.2 },
+        { "u": 0, "v": 6, "active": true, "load": 0.1 },
+        { "u": 6, "v": 7, "active": true, "load": 0.3 }
+      ],
+      "route": {
+        "source": 0,
+        "target": 7,
+        "path": [0, 6, 7],
+        "is_adaptive": false
+      }
+    },
+    {
+      "step_id": 1,
+      "metrics": {
+        "avg_delay": 15.2,
+        "reroute_count": 1,
+        "stability_score": 95
+      },
+      "links": [
+        { "u": 0, "v": 1, "active": true, "load": 0.4 },
+        { "u": 1, "v": 2, "active": true, "load": 0.5 },
+        { "u": 0, "v": 6, "active": true, "load": 0.8 },
+        { "u": 6, "v": 7, "active": true, "load": 0.9 }
+      ],
+      "route": {
+        "source": 0,
+        "target": 7,
+        "path": [0, 1, 2, 8, 7],
+        "is_adaptive": true
+      }
+    },
+    {
+      "step_id": 2,
+      "metrics": {
+        "avg_delay": 22.0,
+        "reroute_count": 3,
+        "stability_score": 80
+      },
+      "links": [
+        { "u": 0, "v": 1, "active": true, "load": 0.2 },
+        { "u": 0, "v": 6, "active": false, "load": 0.0 },
+        { "u": 6, "v": 7, "active": true, "load": 1.0 }
+      ],
+      "route": {
+        "source": 0,
+        "target": 7,
+        "path": [0, 1, 2, 8, 7],
+        "is_adaptive": true
+      }
+    }
+  ]
+}
