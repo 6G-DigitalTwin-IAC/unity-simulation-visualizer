@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+// Bu dosya sadece veri tiplerini tanimlar. Sahneye atilmaz!
+
 [System.Serializable]
 public class SimulationData
 {
@@ -28,10 +30,10 @@ public class StepMetrics
 [System.Serializable]
 public class LinkData
 {
-    public int u; // Başlangıç Node ID
-    public int v; // Bitiş Node ID
+    public int u; // Start Node
+    public int v; // End Node
     public bool active;
-    public float load; // 0.0 ile 1.0 arası
+    public float load;
 }
 
 [System.Serializable]
@@ -39,6 +41,6 @@ public class RouteData
 {
     public int source;
     public int target;
-    public List<int> path; // İzlenen yolun node ID'leri: [2, 3, 9, 15]
+    public List<int> path;
     public bool is_adaptive;
 }

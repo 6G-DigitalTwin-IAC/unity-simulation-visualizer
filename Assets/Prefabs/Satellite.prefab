@@ -67,7 +67,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 2a28860eb4eb5464db9ed17ceb15421d, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -157,3 +157,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31edd46dac2077f4481fe4cd173ab750, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Node
+  id: 0
+  planeIndex: 0
+  satIndex: 0

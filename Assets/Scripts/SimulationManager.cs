@@ -1,45 +1,51 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections.Generic;
-using System.IO;
 
 public class SimulationManager : MonoBehaviour
 {
-    [Header("Ayarlar")]
-    public TextAsset jsonFile; // JSON dosyasını buraya sürükleyeceksin
-    public GameObject nodePrefab; // Küre prefabı
-    public GameObject linkPrefab; // LineRenderer prefabı
+    [Header("Gerekli Dosyalar")]
+    public TextAsset jsonFile; // test_data.json buraya
+    public GameObject nodePrefab; 
+    public GameObject linkPrefab; // Üzerinde LinkVisualizer olan prefab
+
+    [Header("Otomatik Bulunacak UI")]
+    public Button nextBtn;
+    public Button prevBtn;
     
-    [Header("Topoloji Parametreleri")]
-    public float radius = 10f; // Yörünge yarıçapı
-    public float planeSpacing = 2f; // Düzlemler arası mesafe (Görsellik için)
-
-    [Header("UI Referansları")]
-    // Buraya TextMeshPro referansları gelecek (Örn: public TMPro.TMP_Text delayText;)
-
     // Veriler
     private SimulationData simData;
     private Dictionary<int, Node> nodeMap = new Dictionary<int, Node>();
     private Dictionary<string, LinkVisualizer> linkMap = new Dictionary<string, LinkVisualizer>();
-    
     private int currentStepIndex = 0;
 
     void Start()
     {
+        // Butonları bul
+        if(nextBtn == null) 
+            if(GameObject.Find("ButtonNext")) nextBtn = GameObject.Find("ButtonNext").GetComponent<Button>();
+        if(prevBtn == null) 
+            if(GameObject.Find("ButtonPrev")) prevBtn = GameObject.Find("ButtonPrev").GetComponent<Button>();
+
+        if(nextBtn != null) nextBtn.onClick.AddListener(NextStep);
+        if(prevBtn != null) prevBtn.onClick.AddListener(PrevStep);
+
+        // İşlemleri Başlat
         LoadData();
         BuildTopology();
-        ShowStep(0); // İlk adımı göster
+        ShowStep(0); 
     }
 
     void LoadData()
     {
-        // JSON dosyasını parse et
+        if(jsonFile == null) { Debug.LogError("JSON DOSYASI ATANMADI!"); return; }
         simData = JsonUtility.FromJson<SimulationData>(jsonFile.text);
-        Debug.Log($"Veri Yüklendi: {simData.steps.Count} adım var.");
     }
 
     void BuildTopology()
     {
-        // 1. Uyduları (Nodes) Oluştur
+        // 1. Uyduları (Nodes) Diz
+        float radius = 10f;
         int planes = simData.total_planes;
         int sats = simData.sats_per_plane;
 
@@ -49,70 +55,68 @@ public class SimulationManager : MonoBehaviour
             {
                 int id = p * sats + s;
                 
-                // Basit bir silindirik/küresel dizilim matematiği
-                float angle = (360f / sats) * s * Mathf.Deg2Rad;
-                float x = Mathf.Cos(angle) * radius;
-                float z = Mathf.Sin(angle) * radius;
-                float y = (p - (planes / 2f)) * planeSpacing; // Düzlemleri Y ekseninde ayır
+                
+                
+                // Uyduları uzayda bir küre şeklinde diziyoruz
+                float phi = (p * 360f / planes) * Mathf.Deg2Rad; // Düzlem açısı
+                float theta = ((s * 180f / sats) - 90f) * Mathf.Deg2Rad; // Yükseklik açısı
+
+                float x = radius * Mathf.Cos(theta) * Mathf.Cos(phi);
+                float z = radius * Mathf.Cos(theta) * Mathf.Sin(phi);
+                float y = radius * Mathf.Sin(theta);
 
                 GameObject nodeObj = Instantiate(nodePrefab, new Vector3(x, y, z), Quaternion.identity, transform);
                 Node nodeScript = nodeObj.GetComponent<Node>();
-                nodeScript.Setup(id, p, s);
                 
+                // Node scripti yoksa ekle (güvenlik için)
+                if(nodeScript == null) nodeScript = nodeObj.AddComponent<Node>();
+                
+                nodeScript.Setup(id, p, s);
                 nodeMap.Add(id, nodeScript);
             }
         }
-
-        // 2. Linkleri (Edges) baştan oluşturmak yerine, ilk adımdaki link listesine göre havuz oluşturuyoruz
-        // Not: Gerçek topolojiyi bilmek için tüm olası linkleri baştan oluşturmak daha iyidir ama
-        // şimdilik dinamik olarak gelen listedekileri oluşturacağız.
+        Debug.Log("Uydular oluşturuldu: " + nodeMap.Count);
     }
 
     public void ShowStep(int stepIndex)
     {
-        if (stepIndex < 0 || stepIndex >= simData.steps.Count) return;
+        if (simData == null || stepIndex >= simData.steps.Count) return;
         currentStepIndex = stepIndex;
-
         StepData step = simData.steps[currentStepIndex];
 
-        // --- A. Linkleri Güncelle ---
+        // Linkleri çiz veya güncelle
         foreach (var linkInfo in step.links)
         {
-            // Benzersiz bir key oluştur: "0-1" veya "1-0" aynı linktir
+            // ID'leri küçükten büyüğe sırala ki "0-1" ile "1-0" aynı olsun
             int min = Mathf.Min(linkInfo.u, linkInfo.v);
             int max = Mathf.Max(linkInfo.u, linkInfo.v);
-            string key = $"{min}-{max}";
+            string key = min + "-" + max;
 
             LinkVisualizer visualizer;
 
-            // Eğer bu link sahnede yoksa oluştur
             if (!linkMap.TryGetValue(key, out visualizer))
             {
-                GameObject linkObj = Instantiate(linkPrefab, transform);
-                visualizer = linkObj.GetComponent<LinkVisualizer>();
-                visualizer.Setup(nodeMap[min], nodeMap[max]);
-                linkMap.Add(key, visualizer);
+                // Link yoksa oluştur
+                if(nodeMap.ContainsKey(min) && nodeMap.ContainsKey(max))
+                {
+                    GameObject linkObj = Instantiate(linkPrefab, transform);
+                    visualizer = linkObj.GetComponent<LinkVisualizer>();
+                    if(visualizer == null) visualizer = linkObj.AddComponent<LinkVisualizer>();
+                    
+                    visualizer.Setup(nodeMap[min], nodeMap[max]);
+                    linkMap.Add(key, visualizer);
+                }
             }
 
-            // Rengini ve durumunu güncelle
-            visualizer.UpdateVisuals(linkInfo.active, linkInfo.load);
+            // Varsa güncelle
+            if (linkMap.TryGetValue(key, out visualizer))
+            {
+                visualizer.UpdateVisuals(linkInfo.active, linkInfo.load);
+            }
         }
-
-        // --- B. UI Güncelle (Metrikler) ---
-        Debug.Log($"Step: {step.step_id} | Delay: {step.metrics.avg_delay}");
-        // uiText.text = ...
-
-        // --- C. Rotayı Çiz (Opsiyonel) ---
-        DrawRoute(step.route);
+        Debug.Log("Step " + stepIndex + " gösteriliyor.");
     }
 
-    void DrawRoute(RouteData route)
-    {
-        // Burada seçilen path üzerindeki linkleri parlatabilirsin
-        // Örn: LinkVisualizer'a "Highlight()" fonksiyonu ekleyip çağırabilirsin.
-    }
-
-    // Butonlar için fonksiyonlar
-    public void NextStep() => ShowStep(currentStepIndex + 1);
-    public void PrevStep() => ShowStep(currentStepIndex - 1);
+    public void NextStep() { if(currentStepIndex < simData.steps.Count -1) ShowStep(currentStepIndex + 1); }
+    public void PrevStep() { if(currentStepIndex > 0) ShowStep(currentStepIndex - 1); }
 }
