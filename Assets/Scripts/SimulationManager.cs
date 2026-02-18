@@ -61,9 +61,12 @@ public class SimulationManager : MonoBehaviour
                 float phi = (p * 360f / planes) * Mathf.Deg2Rad; // Düzlem açısı
                 float theta = ((s * 180f / sats) - 90f) * Mathf.Deg2Rad; // Yükseklik açısı
 
-                float x = radius * Mathf.Cos(theta) * Mathf.Cos(phi);
-                float z = radius * Mathf.Cos(theta) * Mathf.Sin(phi);
-                float y = radius * Mathf.Sin(theta);
+                float angle = (360f / planes) * p * Mathf.Deg2Rad;
+                float x = Mathf.Cos(angle) * radius;
+                float z = Mathf.Sin(angle) * radius;
+                float y = s * 2.0f; // Yükseklik
+                
+                
 
                 GameObject nodeObj = Instantiate(nodePrefab, new Vector3(x, y, z), Quaternion.identity, transform);
                 Node nodeScript = nodeObj.GetComponent<Node>();
