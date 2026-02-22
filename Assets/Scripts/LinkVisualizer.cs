@@ -3,41 +3,52 @@ using UnityEngine;
 public class LinkVisualizer : MonoBehaviour
 {
     public LineRenderer lineRenderer;
-    public int startNodeID;
-    public int endNodeID;
+    
+    private Color normalColor = Color.red; // Görseldeki gibi ağın ana rengi kırmızı
+    private Color routeColor = new Color(0.6f, 0.2f, 0.0f); // Rota için kahverengi/kalın kırmızı
+    private Color disabledColor = new Color(0.2f, 0.2f, 0.2f, 0.1f); 
 
-    // Renk skalası: Yeşil (Boş) -> Sarı -> Kırmızı (Dolu)
-    public Color emptyColor = Color.green;
-    public Color fullColor = Color.red;
-    public Color disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.2f); // Gri ve şeffaf
+    void Awake()
+    {
+        if (lineRenderer == null) lineRenderer = GetComponent<LineRenderer>();
+        if (lineRenderer == null) lineRenderer = gameObject.AddComponent<LineRenderer>();
+
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.useWorldSpace = true;
+    }
 
     public void Setup(Node nodeA, Node nodeB)
     {
-        startNodeID = nodeA.id;
-        endNodeID = nodeB.id;
-        
-        // Çizgiyi iki node arasında başlat
         lineRenderer.positionCount = 2;
         lineRenderer.SetPosition(0, nodeA.transform.position);
         lineRenderer.SetPosition(1, nodeB.transform.position);
     }
 
-    public void UpdateVisuals(bool isActive, float load)
+    // YENİ: isRoute parametresi eklendi
+    public void UpdateVisuals(bool isActive, float load, bool isRoute)
     {
         if (!isActive)
         {
-            // Link koptuysa gri yap veya incelt
             lineRenderer.startColor = disabledColor;
             lineRenderer.endColor = disabledColor;
-            lineRenderer.widthMultiplier = 0.05f; 
+            lineRenderer.widthMultiplier = 0.02f; // Pasifleri çok incelt
+            lineRenderer.sortingOrder = -1; // Arkaya at
+        }
+        else if (isRoute)
+        {
+            // EĞER BU LİNK SEÇİLİ ROTA ÜZERİNDEYSE (Görseldeki gibi kalın yap)
+            lineRenderer.startColor = routeColor;
+            lineRenderer.endColor = routeColor;
+            lineRenderer.widthMultiplier = 0.35f; // Çok Kalın
+            lineRenderer.sortingOrder = 1; // En öne al
         }
         else
         {
-            // Yüke göre renk değiştir (Lerp)
-            Color targetColor = Color.Lerp(emptyColor, fullColor, load);
-            lineRenderer.startColor = targetColor;
-            lineRenderer.endColor = targetColor;
-            lineRenderer.widthMultiplier = 0.1f + (load * 0.1f); // Yük arttıkça kalınlaşsın
+            // Normal aktif link (Görseldeki gibi ince kırmızı)
+            lineRenderer.startColor = normalColor;
+            lineRenderer.endColor = normalColor;
+            lineRenderer.widthMultiplier = 0.05f + (load * 0.05f); 
+            lineRenderer.sortingOrder = 0;
         }
     }
 }
