@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: aee7af7d2a2a07a4d95b53d21946e3f3
+timeCreated: 1466862317
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 98970
+  packageName: Magellan
+  packageVersion: 1.0
+  assetPath: Assets/magellan/Materials/aluminum1.mat
+  uploadId: 202045

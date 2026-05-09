@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: fb11a7c9e5777c24f9521f5d349ababb
+timeCreated: 1466862317
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 98970
+  packageName: Magellan
+  packageVersion: 1.0
+  assetPath: Assets/magellan/Materials/magelan_map1.mat
+  uploadId: 202045

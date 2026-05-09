@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 3c0bd1dacadb00942aaf6b437c8168bd
+timeCreated: 1505997477
+licenseType: Store
+DefaultImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 98970
+  packageName: Magellan
+  packageVersion: 1.0
+  assetPath: Assets/magellan/Magellan.unity
+  uploadId: 202045
