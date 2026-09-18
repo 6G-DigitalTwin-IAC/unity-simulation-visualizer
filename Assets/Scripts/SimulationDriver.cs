@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -8,7 +9,7 @@ using UnityEngine;
 /// </summary>
 public class SimulationDriver : MonoBehaviour
 {
-    [Header("Constellation Config")]
+    [Header("Constellation & Gate Config")]
     public NetworkConfig config = new NetworkConfig();
 
     [Header("Timing")]
@@ -52,19 +53,16 @@ public class SimulationDriver : MonoBehaviour
 
     void Start()
     {
-        Debug.Log($"[Driver] ===== SIMULATION DRIVER START =====");
-        Debug.Log($"[Driver] Config: {config.totalPlanes} planes × {config.satsPerPlane} sats = {TotalSats} total");
-        Debug.Log($"[Driver] Route: Source={config.sourceNode}, Target={config.targetNode}");
-        Debug.Log($"[Driver] Orbit: altitude={config.orbitAltitude}km, inclination={config.inclination}°");
+        Debug.Log($"[Driver] Config: {config.totalPlanes} planes x {config.satsPerPlane} sats = {TotalSats} total (Walker Delta {config.inclination}°)");
+        Debug.Log($"[Driver] Flow: Source={config.sourceNode}, Target={config.targetNode}, gate mode={config.gateMode}");
 
         network     = new SatelliteNetwork(config);
         orbitEngine = new OrbitEngine(config, simTimeScale);
 
         SatellitePositions = orbitEngine.GetAllPositions(0f);
-        CurrentSnapshot    = network.GetSnapshot();
+        CurrentSnapshot     = network.GetSnapshot();
 
-        Debug.Log($"[Driver] ✓ Network created with {network.GetLinks().Count} ISLs");
-        Debug.Log($"[Driver] ✓ Initial route path: {string.Join("→", CurrentSnapshot.route.path)}");
+        Debug.Log($"[Driver] Network created with {network.GetLinks().Count} ISLs (expect {TotalSats * 2} for degree-4 Walker Delta)");
     }
 
     void Update()
@@ -80,34 +78,32 @@ public class SimulationDriver : MonoBehaviour
         // Network ticks at fixed intervals
         if (stepTimer >= stepInterval)
         {
-            stepTimer -= stepInterval;
-            Tick();
+            float dt = stepTimer;
+            stepTimer = 0f;
+            Tick(dt);
         }
     }
 
-    void Tick()
+    void Tick(float dt)
     {
         TryGenerateRandomEvent();
-        CurrentSnapshot = network.Step();
+        CurrentSnapshot = network.Step(dt);
         OnStepComplete?.Invoke(CurrentSnapshot);
     }
 
     void TryGenerateRandomEvent()
     {
-        // Random link failure
         if (UnityEngine.Random.value < linkFailureProbability)
         {
             var activeLinks = GetActiveLinks();
             if (activeLinks.Count > 0)
             {
                 var link = RandomElement(activeLinks);
-                float dur = UnityEngine.Random.Range(
-                    config.failureDurationMin, config.failureDurationMax);
+                float dur = UnityEngine.Random.Range(config.failureDurationMin, config.failureDurationMax);
                 network.InjectLinkFailure(link.u, link.v, dur);
             }
         }
 
-        // Random congestion spike
         if (UnityEngine.Random.value < congestionProbability)
         {
             var candidates = GetActiveLinks().FindAll(l => l.load < 0.7f);
@@ -119,15 +115,9 @@ public class SimulationDriver : MonoBehaviour
         }
     }
 
-    System.Collections.Generic.List<SatelliteLink> GetActiveLinks()
-    {
-        var all = new System.Collections.Generic.List<SatelliteLink>(
-            network.GetLinks().Values);
-        return all.FindAll(l => l.active);
-    }
+    List<SatelliteLink> GetActiveLinks() => network.GetLinks().FindAll(l => l.active);
 
-    static T RandomElement<T>(System.Collections.Generic.List<T> list) =>
-        list[UnityEngine.Random.Range(0, list.Count)];
+    static T RandomElement<T>(List<T> list) => list[UnityEngine.Random.Range(0, list.Count)];
 
     // ─── Public Controls ──────────────────────────────────────────────────────
 
@@ -137,10 +127,15 @@ public class SimulationDriver : MonoBehaviour
     /// <param name="speed">Ticks per second (e.g. 2 = two network steps/sec)</param>
     public void SetSpeed(float speed)     => stepInterval = 1f / Mathf.Max(0.1f, speed);
 
-    /// Force a failure on the first link of the current route to demo rerouting.
+    public void SetGateMode(GateMode mode)         => config.gateMode = mode;
+    public void SetTrafficRegime(TrafficRegime r)  => config.trafficRegime = r;
+    public void SetTelemetryDelay(float seconds)   => config.telemetryDelaySeconds = seconds;
+    public void SetLoadSigma(float sigma)          => config.loadSigma = sigma;
+
+    /// Force a failure on the first link of the currently visualized route to demo rerouting.
     public void ForceReroute()
     {
-        var path = CurrentSnapshot?.route.path;
+        var path = network?.GetActivePath(config.gateMode);
         if (path != null && path.Count >= 2)
             network.InjectLinkFailure(path[0], path[1],
                 UnityEngine.Random.Range(config.failureDurationMin, config.failureDurationMax));
@@ -152,16 +147,4 @@ public class SimulationDriver : MonoBehaviour
 
     // Expose for extensions (e.g. clicking on a satellite in-scene)
     public SatelliteNetwork Network => network;
-}
-
-// Needed because NetworkConfig is a plain class, not ScriptableObject
-// This adds a public GetSnapshot() on the network (already defined above)
-public static class SatelliteNetworkExtensions
-{
-    public static NetworkSnapshot GetSnapshot(this SatelliteNetwork net)
-    {
-        // Delegates to the internal BuildSnapshot — already returned by Step().
-        // Call net.Step() if you need a fresh snapshot without advancing the sim.
-        return net.Step(); // Note: only use for initialization
-    }
 }

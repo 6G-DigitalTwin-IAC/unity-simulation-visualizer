@@ -12,13 +12,17 @@ public class ConstellationVisualizer : MonoBehaviour
     public GameObject satPrefab;
     public GameObject earthPrefab;
 
+    [Header("Earth Rotation")]
+    [Tooltip("Stylized rotation speed for Earth, driven by the same paused-aware SimTime clock as the constellation (satellite orbits stay fixed in the inertial frame above it).")]
+    public float earthRotationDegPerSec = 6f;
+
     [Header("Debug")]
     [Tooltip("Force use of primitive cubes instead of prefabs (for testing)")]
     public bool forceUseFallbackCubes = false;
 
     [Header("Line Pool")]
-    [Tooltip("Must be >= number of ISLs. ~800 needed for 8x10 constellation (3 links per sat × 80 sats / 2).")]
-    public int linePoolSize = 800;
+    [Tooltip("Must be >= number of ISLs. 528 needed for the 264-sat / degree-4 Walker Delta constellation.")]
+    public int linePoolSize = 600;
 
     [Header("Scales")]
     public float earthScale = 0.15f;     // Multiplier for Earth size (smaller to see constellation better)
@@ -53,6 +57,7 @@ public class ConstellationVisualizer : MonoBehaviour
     private Material          lineMat;
     private Material          routeMat;   // scrolling UV for animated route
     private float             routeScroll;
+    private GameObject        earthObj;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -79,20 +84,20 @@ public class ConstellationVisualizer : MonoBehaviour
         float earthDiameter = driver.EarthRadius * 2f * earthScale;
         if (earthPrefab)
         {
-            var earth = Instantiate(earthPrefab, Vector3.zero, Quaternion.identity);
-            earth.name = "Earth";
-            earth.transform.localScale = Vector3.one * earthDiameter;
+            earthObj = Instantiate(earthPrefab, Vector3.zero, Quaternion.identity);
+            earthObj.name = "Earth";
+            earthObj.transform.localScale = Vector3.one * earthDiameter;
             Debug.Log($"[Visualizer] ✓ Earth instantiated (radius={driver.EarthRadius:F2}, diameter={earthDiameter:F2})");
         }
         else
         {
             Debug.LogWarning("[Visualizer] Earth prefab not assigned! Creating fallback sphere.");
             // Create fallback Earth
-            var earth = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            earth.name = "Earth (Fallback)";
-            earth.transform.position = Vector3.zero;
-            earth.transform.localScale = Vector3.one * earthDiameter;
-            var renderer = earth.GetComponent<Renderer>();
+            earthObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            earthObj.name = "Earth (Fallback)";
+            earthObj.transform.position = Vector3.zero;
+            earthObj.transform.localScale = Vector3.one * earthDiameter;
+            var renderer = earthObj.GetComponent<Renderer>();
             if (renderer) renderer.material.color = new Color(0.2f, 0.4f, 0.8f);
         }
 
@@ -169,10 +174,11 @@ public class ConstellationVisualizer : MonoBehaviour
         Debug.Log($"[Visualizer] ✓ Created {total} satellites using {prefabInfo} with scale {satScale} (renderers: {rendererCount})");
 
         // Highlight source and destination satellites
-        if (highlightEndpoints)
+        var initialPath = driver.CurrentSnapshot?.Visualized.path;
+        if (highlightEndpoints && initialPath != null)
         {
-            int src = driver.Network.GetSnapshot().route.path.Count > 0 ? driver.Network.GetSnapshot().route.path[0] : -1;
-            int dst = driver.Network.GetSnapshot().route.path.Count > 0 ? driver.Network.GetSnapshot().route.path[^1] : -1;
+            int src = initialPath.Count > 0 ? initialPath[0] : -1;
+            int dst = initialPath.Count > 0 ? initialPath[^1] : -1;
 
             if (src >= 0 && src < satObjects.Length && satObjects[src] != null)
             {
@@ -236,8 +242,6 @@ public class ConstellationVisualizer : MonoBehaviour
             lr.enabled        = false;
             linePool.Add(lr);
         }
-
-        Debug.Log($"[Visualizer] Created {linePoolSize} line renderers");
     }
 
     // ─── Update ───────────────────────────────────────────────────────────────
@@ -250,8 +254,18 @@ public class ConstellationVisualizer : MonoBehaviour
         routeScroll = (routeScroll + Time.deltaTime * 0.35f) % 1f;
         routeMat.mainTextureOffset = new Vector2(routeScroll, 0f);
 
+        RotateEarth();
         MoveSatellites();
         DrawLinks();
+    }
+
+    void RotateEarth()
+    {
+        if (earthObj == null) return;
+        // Driven by driver.SimTime (not Time.deltaTime) so Earth's spin pauses/speeds up
+        // together with the rest of the simulation clock, exactly like satellite orbits do.
+        float angle = driver.SimTime * earthRotationDegPerSec;
+        earthObj.transform.rotation = Quaternion.Euler(0f, angle, 0f);
     }
 
     private bool positionLoggedOnce = false;
@@ -318,7 +332,7 @@ public class ConstellationVisualizer : MonoBehaviour
         if (snap == null) return;
 
         var pos        = driver.SatellitePositions;
-        var routeEdges = BuildEdgeSet(snap.route.path);
+        var routeEdges = BuildEdgeSet(snap.Visualized.path);
         int poolIdx    = 0;
 
         foreach (var link in snap.links)
